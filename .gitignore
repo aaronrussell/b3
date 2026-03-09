@@ -25,4 +25,5 @@ b3-*.tar
 # Temporary files, for example, from tests.
 /tmp/
 
-.DS_Store
+# Ignore local claude settings
+/.claude/settings.local.json

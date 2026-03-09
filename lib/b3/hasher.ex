@@ -6,10 +6,14 @@ defmodule B3.Hasher do
 
   defstruct [:chunk_state, :key_words, :cv_stack, :flags]
 
+  @chunk_len 1024
+  @block_len 64
+  @parent 1 <<< 2
+
   @type t() :: %__MODULE__{
           chunk_state: ChunkState.t(),
-          key_words: list(integer()),
-          cv_stack: list(list(integer())),
+          key_words: tuple(),
+          cv_stack: list(tuple()),
           flags: integer()
         }
 
@@ -38,29 +42,39 @@ defmodule B3.Hasher do
 
   def update(%__MODULE__{} = hasher, input) when is_binary(input) do
     hasher =
-      case ChunkState.len(hasher.chunk_state) == Blake3.params(:chunk_len) do
+      case ChunkState.len(hasher.chunk_state) == @chunk_len do
         true ->
           chunk_cv =
             hasher.chunk_state
             |> ChunkState.output()
             |> Output.chaining_value()
 
-          total_chunks = Map.get(hasher.chunk_state, :chunk_counter) + 1
+          total_chunks = hasher.chunk_state.chunk_counter + 1
 
-          hasher
-          |> add_chunk_chaining_value(chunk_cv, total_chunks)
-          |> Map.put(:chunk_state, ChunkState.new(hasher.key_words, total_chunks, hasher.flags))
+          cv_stack =
+            merge_cv_stack(
+              hasher.cv_stack,
+              chunk_cv,
+              total_chunks,
+              hasher.key_words,
+              hasher.flags
+            )
+
+          %{
+            hasher
+            | cv_stack: cv_stack,
+              chunk_state: ChunkState.new(hasher.key_words, total_chunks, hasher.flags)
+          }
 
         false ->
           hasher
       end
 
-    want = Blake3.params(:chunk_len) - ChunkState.len(hasher.chunk_state)
+    want = @chunk_len - ChunkState.len(hasher.chunk_state)
     take = min(want, byte_size(input))
     <<input::binary-size(take), rest::binary>> = input
 
-    hasher
-    |> Map.update!(:chunk_state, &ChunkState.update(&1, input))
+    %{hasher | chunk_state: ChunkState.update(hasher.chunk_state, input)}
     |> update(rest)
   end
 
@@ -68,12 +82,11 @@ defmodule B3.Hasher do
   def finalize(%__MODULE__{} = hasher, bytes) when is_integer(bytes) do
     output = ChunkState.output(hasher.chunk_state)
 
-    hasher
-    |> root_output(output)
+    root_output(hasher.cv_stack, output, hasher.key_words, hasher.flags)
     |> Output.root_output_bytes(bytes)
   end
 
-  defp init(key_words, flags) when is_list(key_words) and is_integer(flags) do
+  defp init(key_words, flags) when is_tuple(key_words) and is_integer(flags) do
     %__MODULE__{
       chunk_state: ChunkState.new(key_words, 0, flags),
       key_words: key_words,
@@ -82,50 +95,48 @@ defmodule B3.Hasher do
     }
   end
 
-  defp add_chunk_chaining_value(%__MODULE__{} = hasher, new_cv, total_chunks)
-       when is_list(new_cv) and is_integer(total_chunks) do
+  # Pure function: merges cv_stack without touching hasher struct
+  defp merge_cv_stack(cv_stack, new_cv, total_chunks, key_words, flags) do
     case (total_chunks &&& 1) == 0 do
       true ->
-        [top_cv | cv_stack] = hasher.cv_stack
+        [top_cv | rest] = cv_stack
 
         new_cv =
-          parent_output(top_cv, new_cv, hasher.key_words, hasher.flags)
+          parent_output(top_cv, new_cv, key_words, flags)
           |> Output.chaining_value()
 
-        hasher
-        |> Map.put(:cv_stack, cv_stack)
-        |> add_chunk_chaining_value(new_cv, total_chunks >>> 1)
+        merge_cv_stack(rest, new_cv, total_chunks >>> 1, key_words, flags)
 
       false ->
-        update_in(hasher.cv_stack, &[new_cv | &1])
+        [new_cv | cv_stack]
     end
   end
 
   defp parent_output(left_child_cv, right_child_cv, key_words, flags) do
-    block_words = left_child_cv ++ right_child_cv
+    {l0, l1, l2, l3, l4, l5, l6, l7} = left_child_cv
+    {r0, r1, r2, r3, r4, r5, r6, r7} = right_child_cv
 
     %Output{
       input_chaining_value: key_words,
-      block_words: block_words,
+      block_words: {l0, l1, l2, l3, l4, l5, l6, l7, r0, r1, r2, r3, r4, r5, r6, r7},
       counter: 0,
-      block_len: Blake3.params(:block_len),
-      flags: Blake3.flags(:parent) ||| flags
+      block_len: @block_len,
+      flags: @parent ||| flags
     }
   end
 
-  defp root_output(%__MODULE__{cv_stack: []}, %Output{} = output), do: output
+  # Pure function: walks cv_stack without struct updates
+  defp root_output([], %Output{} = output, _key_words, _flags), do: output
 
-  defp root_output(%__MODULE__{cv_stack: [top_cv | cv_stack]} = hasher, %Output{} = output) do
+  defp root_output([top_cv | cv_stack], %Output{} = output, key_words, flags) do
     output =
       parent_output(
         top_cv,
         Output.chaining_value(output),
-        hasher.key_words,
-        hasher.flags
+        key_words,
+        flags
       )
 
-    hasher
-    |> Map.put(:cv_stack, cv_stack)
-    |> root_output(output)
+    root_output(cv_stack, output, key_words, flags)
   end
 end

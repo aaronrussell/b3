@@ -17,7 +17,7 @@ defmodule B3.Blake3 do
   @derive_key_context 1 <<< 5
   @derive_key_material 1 <<< 6
 
-  @iv [
+  @iv {
     0x6A09E667,
     0xBB67AE85,
     0x3C6EF372,
@@ -26,10 +26,10 @@ defmodule B3.Blake3 do
     0x9B05688C,
     0x1F83D9AB,
     0x5BE0CD19
-  ]
+  }
 
   @typedoc "Initialization vector"
-  @type iv() :: list(integer())
+  @type iv() :: tuple()
 
   @typedoc "BLAKE3 params"
   @type params() :: %{
@@ -49,9 +49,6 @@ defmodule B3.Blake3 do
           derive_key_context: integer(),
           derive_key_material: integer()
         }
-
-  @max_u32 4_294_967_296
-  @msg_permutation [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8]
 
   @doc """
   Returns the BLAKE3 initialization vector.
@@ -76,7 +73,10 @@ defmodule B3.Blake3 do
   Returns the BLAKE3 param for the given key.
   """
   @spec params(atom()) :: integer()
-  def params(key), do: Map.get(params(), key)
+  def params(:out_len), do: @out_len
+  def params(:key_len), do: @key_len
+  def params(:block_len), do: @block_len
+  def params(:chunk_len), do: @chunk_len
 
   @doc """
   Returns the BLAKE3 flags.
@@ -98,129 +98,344 @@ defmodule B3.Blake3 do
   Returns the BLAKE3 flag for the given key.
   """
   @spec flags(atom()) :: integer()
-  def flags(key), do: Map.get(flags(), key)
+  def flags(:chunk_start), do: @chunk_start
+  def flags(:chunk_end), do: @chunk_end
+  def flags(:parent), do: @parent
+  def flags(:root), do: @root
+  def flags(:keyed_hash), do: @keyed_hash
+  def flags(:derive_key_context), do: @derive_key_context
+  def flags(:derive_key_material), do: @derive_key_material
 
   @doc """
-  Takes a 128-byte chunk and mixes it into the chainign value.
+  Returns only the 8-word chaining value (first 8 XOR'd elements).
+  Saves 8 bxor ops and halves the return tuple size vs compress/5.
   """
-  @spec compress(list(integer()), list(integer()), integer(), integer(), integer()) ::
-          list(integer())
-  def compress(chaining_value, block_words, counter, block_len, flags) do
-    state = [
-      Enum.at(chaining_value, 0),
-      Enum.at(chaining_value, 1),
-      Enum.at(chaining_value, 2),
-      Enum.at(chaining_value, 3),
-      Enum.at(chaining_value, 4),
-      Enum.at(chaining_value, 5),
-      Enum.at(chaining_value, 6),
-      Enum.at(chaining_value, 7),
-      Enum.at(@iv, 0),
-      Enum.at(@iv, 1),
-      Enum.at(@iv, 2),
-      Enum.at(@iv, 3),
+  @spec compress_cv(tuple(), binary() | tuple(), integer(), integer(), integer()) :: tuple()
+  def compress_cv(
+        {cv0, cv1, cv2, cv3, cv4, cv5, cv6, cv7},
+        <<m0::little-32, m1::little-32, m2::little-32, m3::little-32, m4::little-32,
+          m5::little-32, m6::little-32, m7::little-32, m8::little-32, m9::little-32,
+          m10::little-32, m11::little-32, m12::little-32, m13::little-32, m14::little-32,
+          m15::little-32>>,
+        counter,
+        block_len,
+        flags
+      ) do
+    {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15} =
+      mix(
+        cv0,
+        cv1,
+        cv2,
+        cv3,
+        cv4,
+        cv5,
+        cv6,
+        cv7,
+        elem(@iv, 0),
+        elem(@iv, 1),
+        elem(@iv, 2),
+        elem(@iv, 3),
+        counter,
+        counter >>> 32,
+        block_len,
+        flags,
+        m0,
+        m1,
+        m2,
+        m3,
+        m4,
+        m5,
+        m6,
+        m7,
+        m8,
+        m9,
+        m10,
+        m11,
+        m12,
+        m13,
+        m14,
+        m15
+      )
+
+    {bxor(s0, s8), bxor(s1, s9), bxor(s2, s10), bxor(s3, s11), bxor(s4, s12), bxor(s5, s13),
+     bxor(s6, s14), bxor(s7, s15)}
+  end
+
+  def compress_cv(
+        {cv0, cv1, cv2, cv3, cv4, cv5, cv6, cv7},
+        {m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15},
+        counter,
+        block_len,
+        flags
+      ) do
+    {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15} =
+      mix(
+        cv0,
+        cv1,
+        cv2,
+        cv3,
+        cv4,
+        cv5,
+        cv6,
+        cv7,
+        elem(@iv, 0),
+        elem(@iv, 1),
+        elem(@iv, 2),
+        elem(@iv, 3),
+        counter,
+        counter >>> 32,
+        block_len,
+        flags,
+        m0,
+        m1,
+        m2,
+        m3,
+        m4,
+        m5,
+        m6,
+        m7,
+        m8,
+        m9,
+        m10,
+        m11,
+        m12,
+        m13,
+        m14,
+        m15
+      )
+
+    {bxor(s0, s8), bxor(s1, s9), bxor(s2, s10), bxor(s3, s11), bxor(s4, s12), bxor(s5, s13),
+     bxor(s6, s14), bxor(s7, s15)}
+  end
+
+  @doc """
+  Takes a 128-byte chunk and mixes it into the chaining value.
+  Returns full 16-tuple state.
+  """
+  @spec compress(tuple(), binary() | tuple(), integer(), integer(), integer()) :: tuple()
+  def compress(
+        chaining_value,
+        <<m0::little-32, m1::little-32, m2::little-32, m3::little-32, m4::little-32,
+          m5::little-32, m6::little-32, m7::little-32, m8::little-32, m9::little-32,
+          m10::little-32, m11::little-32, m12::little-32, m13::little-32, m14::little-32,
+          m15::little-32>>,
+        counter,
+        block_len,
+        flags
+      ) do
+    compress(
+      chaining_value,
+      {m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15},
       counter,
-      counter >>> 32,
       block_len,
       flags
-    ]
+    )
+  end
 
-    Enum.reduce(0..7, mix(state, block_words), fn i, state ->
-      state
-      |> List.update_at(i, &bxor(&1, Enum.at(state, i + 8)))
-      |> List.update_at(i + 8, &bxor(&1, Enum.at(chaining_value, i)))
-    end)
+  def compress(
+        chaining_value,
+        {m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15},
+        counter,
+        block_len,
+        flags
+      ) do
+    {cv0, cv1, cv2, cv3, cv4, cv5, cv6, cv7} = chaining_value
+
+    {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15} =
+      mix(
+        cv0,
+        cv1,
+        cv2,
+        cv3,
+        cv4,
+        cv5,
+        cv6,
+        cv7,
+        elem(@iv, 0),
+        elem(@iv, 1),
+        elem(@iv, 2),
+        elem(@iv, 3),
+        counter,
+        counter >>> 32,
+        block_len,
+        flags,
+        m0,
+        m1,
+        m2,
+        m3,
+        m4,
+        m5,
+        m6,
+        m7,
+        m8,
+        m9,
+        m10,
+        m11,
+        m12,
+        m13,
+        m14,
+        m15
+      )
+
+    {bxor(s0, s8), bxor(s1, s9), bxor(s2, s10), bxor(s3, s11), bxor(s4, s12), bxor(s5, s13),
+     bxor(s6, s14), bxor(s7, s15), bxor(s8, cv0), bxor(s9, cv1), bxor(s10, cv2), bxor(s11, cv3),
+     bxor(s12, cv4), bxor(s13, cv5), bxor(s14, cv6), bxor(s15, cv7)}
   end
 
   @doc """
-  Converts a binary string into a list of integers.
+  Converts a binary string into a tuple of integers.
   """
-  @spec words_from_le_bytes(binary(), integer()) :: list(integer())
-  def words_from_le_bytes(bytes, len \\ 16) when len * 4 >= byte_size(bytes) do
-    bytes
-    |> words_from_le_bytes(len, [])
-    |> Enum.reverse()
+  @spec words_from_le_bytes(binary(), integer()) :: tuple()
+  def words_from_le_bytes(bytes, len \\ 16)
+
+  def words_from_le_bytes(
+        <<w0::little-32, w1::little-32, w2::little-32, w3::little-32, w4::little-32,
+          w5::little-32, w6::little-32, w7::little-32, w8::little-32, w9::little-32,
+          w10::little-32, w11::little-32, w12::little-32, w13::little-32, w14::little-32,
+          w15::little-32>>,
+        16
+      ) do
+    {w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15}
   end
 
-  defp words_from_le_bytes("", len, words)
-       when length(words) == len,
-       do: words
-
-  defp words_from_le_bytes("", len, words),
-    do: words_from_le_bytes("", len, [0 | words])
-
-  defp words_from_le_bytes(bytes, len, words) when byte_size(bytes) < 4 do
-    (bytes <> :binary.copy(<<0>>, 4 - byte_size(bytes)))
-    |> words_from_le_bytes(len, words)
+  def words_from_le_bytes(
+        <<w0::little-32, w1::little-32, w2::little-32, w3::little-32, w4::little-32,
+          w5::little-32, w6::little-32, w7::little-32>>,
+        8
+      ) do
+    {w0, w1, w2, w3, w4, w5, w6, w7}
   end
 
-  defp words_from_le_bytes(<<word::little-32, bytes::binary>>, len, words),
-    do: words_from_le_bytes(bytes, len, [word | words])
-
-  # Mixes the state over 7 rounds
-  @spec mix(list(integer()), list(integer())) :: list(integer())
-  defp mix(state, block, n \\ 0)
-  defp mix(state, _block, 7), do: state
-
-  defp mix(state, block, n) do
-    state
-    |> round(block)
-    |> mix(permute(block), n + 1)
+  def words_from_le_bytes(bytes, len) when byte_size(bytes) < len * 4 do
+    padded = bytes <> :binary.copy(<<0>>, len * 4 - byte_size(bytes))
+    words_from_le_bytes(padded, len)
   end
 
-  # A single mix round
-  @spec round(list(integer()), list(integer())) :: list(integer())
-  defp round(state, block) do
-    state
-    # mix cols
-    |> g([0, 4, 8, 12], Enum.at(block, 0), Enum.at(block, 1))
-    |> g([1, 5, 9, 13], Enum.at(block, 2), Enum.at(block, 3))
-    |> g([2, 6, 10, 14], Enum.at(block, 4), Enum.at(block, 5))
-    |> g([3, 7, 11, 15], Enum.at(block, 6), Enum.at(block, 7))
-    # mix diags
-    |> g([0, 5, 10, 15], Enum.at(block, 8), Enum.at(block, 9))
-    |> g([1, 6, 11, 12], Enum.at(block, 10), Enum.at(block, 11))
-    |> g([2, 7, 8, 13], Enum.at(block, 12), Enum.at(block, 13))
-    |> g([3, 4, 9, 14], Enum.at(block, 14), Enum.at(block, 15))
-  end
-
-  # The mixing function, G, which mixes either a column or a diagonal
-  @spec g(list(integer()), list(integer()), integer(), integer()) :: list(integer())
-  defp g(state, idxs, x, y) do
-    [a, b, c, d] = Enum.map(idxs, &Enum.at(state, &1))
-
-    a = rem(a + b + x, @max_u32)
-    d = rotr(bxor(d, a), 16)
-    c = rem(c + d, @max_u32)
-    b = rotr(bxor(b, c), 12)
-    a = rem(a + b + y, @max_u32)
-    d = rotr(bxor(d, a), 8)
-    c = rem(c + d, @max_u32)
-    b = rotr(bxor(b, c), 7)
-
-    update_state(state, idxs, [a, b, c, d])
-  end
-
-  @spec permute(list(integer())) :: list(integer())
-  defp permute(block) do
-    for i <- 0..15 do
-      Enum.at(block, Enum.at(@msg_permutation, i))
+  # The BLAKE3 G mixing function. Expands at compile time to 8 arithmetic/rotation
+  # operations that rebind the four state variables a, b, c, d in the caller's scope.
+  defmacrop g(a, b, c, d, mx, my) do
+    quote do
+      unquote(a) = band(unquote(a) + unquote(b) + unquote(mx), 0xFFFFFFFF)
+      unquote(d) = rotr(bxor(unquote(d), unquote(a)), 16)
+      unquote(c) = band(unquote(c) + unquote(d), 0xFFFFFFFF)
+      unquote(b) = rotr(bxor(unquote(b), unquote(c)), 12)
+      unquote(a) = band(unquote(a) + unquote(b) + unquote(my), 0xFFFFFFFF)
+      unquote(d) = rotr(bxor(unquote(d), unquote(a)), 8)
+      unquote(c) = band(unquote(c) + unquote(d), 0xFFFFFFFF)
+      unquote(b) = rotr(bxor(unquote(b), unquote(c)), 7)
     end
+  end
+
+  # 7-round mix on 16 bare state variables and 16 bare message words.
+  # Each round applies 8 G-calls (4 columns + 4 diagonals) with message words
+  # selected by the BLAKE3 permutation schedule P^N.
+  #
+  # G-call state mappings (same every round):
+  #   Columns:   (s0,s4,s8,s12)  (s1,s5,s9,s13)  (s2,s6,s10,s14)  (s3,s7,s11,s15)
+  #   Diagonals: (s0,s5,s10,s15) (s1,s6,s11,s12) (s2,s7,s8,s13)   (s3,s4,s9,s14)
+  defp mix(
+         s0,
+         s1,
+         s2,
+         s3,
+         s4,
+         s5,
+         s6,
+         s7,
+         s8,
+         s9,
+         s10,
+         s11,
+         s12,
+         s13,
+         s14,
+         s15,
+         m0,
+         m1,
+         m2,
+         m3,
+         m4,
+         m5,
+         m6,
+         m7,
+         m8,
+         m9,
+         m10,
+         m11,
+         m12,
+         m13,
+         m14,
+         m15
+       ) do
+    # Round 0: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    g(s0, s4, s8, s12, m0, m1)
+    g(s1, s5, s9, s13, m2, m3)
+    g(s2, s6, s10, s14, m4, m5)
+    g(s3, s7, s11, s15, m6, m7)
+    g(s0, s5, s10, s15, m8, m9)
+    g(s1, s6, s11, s12, m10, m11)
+    g(s2, s7, s8, s13, m12, m13)
+    g(s3, s4, s9, s14, m14, m15)
+    # Round 1: [2,6,3,10,7,0,4,13,1,11,12,5,9,14,15,8]
+    g(s0, s4, s8, s12, m2, m6)
+    g(s1, s5, s9, s13, m3, m10)
+    g(s2, s6, s10, s14, m7, m0)
+    g(s3, s7, s11, s15, m4, m13)
+    g(s0, s5, s10, s15, m1, m11)
+    g(s1, s6, s11, s12, m12, m5)
+    g(s2, s7, s8, s13, m9, m14)
+    g(s3, s4, s9, s14, m15, m8)
+    # Round 2: [3,4,10,12,13,2,7,14,6,5,9,0,11,15,8,1]
+    g(s0, s4, s8, s12, m3, m4)
+    g(s1, s5, s9, s13, m10, m12)
+    g(s2, s6, s10, s14, m13, m2)
+    g(s3, s7, s11, s15, m7, m14)
+    g(s0, s5, s10, s15, m6, m5)
+    g(s1, s6, s11, s12, m9, m0)
+    g(s2, s7, s8, s13, m11, m15)
+    g(s3, s4, s9, s14, m8, m1)
+    # Round 3: [10,7,12,9,14,3,13,15,4,0,11,2,5,8,1,6]
+    g(s0, s4, s8, s12, m10, m7)
+    g(s1, s5, s9, s13, m12, m9)
+    g(s2, s6, s10, s14, m14, m3)
+    g(s3, s7, s11, s15, m13, m15)
+    g(s0, s5, s10, s15, m4, m0)
+    g(s1, s6, s11, s12, m11, m2)
+    g(s2, s7, s8, s13, m5, m8)
+    g(s3, s4, s9, s14, m1, m6)
+    # Round 4: [12,13,9,11,15,10,14,8,7,2,5,3,0,1,6,4]
+    g(s0, s4, s8, s12, m12, m13)
+    g(s1, s5, s9, s13, m9, m11)
+    g(s2, s6, s10, s14, m15, m10)
+    g(s3, s7, s11, s15, m14, m8)
+    g(s0, s5, s10, s15, m7, m2)
+    g(s1, s6, s11, s12, m5, m3)
+    g(s2, s7, s8, s13, m0, m1)
+    g(s3, s4, s9, s14, m6, m4)
+    # Round 5: [9,14,11,5,8,12,15,1,13,3,0,10,2,6,4,7]
+    g(s0, s4, s8, s12, m9, m14)
+    g(s1, s5, s9, s13, m11, m5)
+    g(s2, s6, s10, s14, m8, m12)
+    g(s3, s7, s11, s15, m15, m1)
+    g(s0, s5, s10, s15, m13, m3)
+    g(s1, s6, s11, s12, m0, m10)
+    g(s2, s7, s8, s13, m2, m6)
+    g(s3, s4, s9, s14, m4, m7)
+    # Round 6: [11,15,5,0,1,9,8,6,14,10,2,12,3,4,7,13]
+    g(s0, s4, s8, s12, m11, m15)
+    g(s1, s5, s9, s13, m5, m0)
+    g(s2, s6, s10, s14, m1, m9)
+    g(s3, s7, s11, s15, m8, m6)
+    g(s0, s5, s10, s15, m14, m10)
+    g(s1, s6, s11, s12, m2, m12)
+    g(s2, s7, s8, s13, m3, m4)
+    g(s3, s4, s9, s14, m7, m13)
+
+    {s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11, s12, s13, s14, s15}
   end
 
   @spec rotr(integer(), integer()) :: integer()
   defp rotr(x, n) do
-    (x >>> n)
-    |> bxor(x <<< (32 - n))
-    |> rem(@max_u32)
-  end
-
-  @spec update_state(list(integer()), list(integer()), list(integer())) :: list(integer())
-  defp update_state(state, [], []), do: state
-
-  defp update_state(state, [i | idxs], [v | vals]) do
-    state
-    |> List.replace_at(i, v)
-    |> update_state(idxs, vals)
+    band(bxor(x >>> n, x <<< (32 - n)), 0xFFFFFFFF)
   end
 end
