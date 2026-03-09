@@ -16,14 +16,18 @@ defmodule B3Test do
       %{"input_len" => len, "keyed_hash" => keyed_hash} = unquote(Macro.escape(vector))
       msg = message(len)
       assert B3.keyed_hash(msg, @vectors["key"], length: 131, encoding: :hex) == keyed_hash
-      assert B3.keyed_hash(msg, @vectors["key"], encoding: :hex) == String.slice(keyed_hash, 0..63)
+
+      assert B3.keyed_hash(msg, @vectors["key"], encoding: :hex) ==
+               String.slice(keyed_hash, 0..63)
     end
 
     test "key derivation vector #{i}" do
       %{"input_len" => len, "derive_key" => key} = unquote(Macro.escape(vector))
       msg = message(len)
       assert B3.derive_key(msg, @vectors["context_string"], length: 131, encoding: :hex) == key
-      assert B3.derive_key(msg, @vectors["context_string"], encoding: :hex) == String.slice(key, 0..63)
+
+      assert B3.derive_key(msg, @vectors["context_string"], encoding: :hex) ==
+               String.slice(key, 0..63)
     end
   end
 
@@ -31,6 +35,5 @@ defmodule B3Test do
   # 0, 1, 2, ..., 249, 250, 0, 1, ..., and so on.
   defp message(len, n \\ 0, msg \\ "")
   defp message(len, n, msg) when n == len, do: msg
-  defp message(len, n, msg), do: message(len, n+1, msg <> <<rem(n, 251)>>)
-
+  defp message(len, n, msg), do: message(len, n + 1, msg <> <<rem(n, 251)>>)
 end

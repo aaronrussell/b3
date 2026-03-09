@@ -47,10 +47,10 @@ defmodule B3 do
   """
   @spec keyed_hash(binary(), binary(), keyword()) :: binary()
   def keyed_hash(message, key, opts \\ [])
-    when is_binary(message)
-    and is_binary(key)
-    and byte_size(key) == 32,
-    do: Hasher.new(:keyed_hash, key) |> digest(message, opts)
+      when is_binary(message) and
+             is_binary(key) and
+             byte_size(key) == 32,
+      do: Hasher.new(:keyed_hash, key) |> digest(message, opts)
 
   @doc """
   Derives a key from the given key material and context string.
@@ -69,9 +69,9 @@ defmodule B3 do
   """
   @spec derive_key(binary(), String.t(), keyword()) :: binary()
   def derive_key(material, context, opts \\ [])
-    when is_binary(material)
-    and is_binary(context),
-    do: Hasher.new(:derive_key, context) |> digest(material, opts)
+      when is_binary(material) and
+             is_binary(context),
+      do: Hasher.new(:derive_key, context) |> digest(material, opts)
 
   # Uses the Hasher to calculate the digest of the given message
   defp digest(%Hasher{} = hasher, message, opts) do
@@ -89,5 +89,4 @@ defmodule B3 do
   defp encode(data, :base64), do: Base.encode64(data)
   defp encode(data, :hex), do: Base.encode16(data, case: :lower)
   defp encode(data, _), do: data
-
 end

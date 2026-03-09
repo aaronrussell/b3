@@ -13,7 +13,7 @@ defmodule B3.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: docs(),
-      package: pkg(),
+      package: pkg()
     ]
   end
 
@@ -28,7 +28,7 @@ defmodule B3.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
-      {:jason, "~> 1.4", only: :test},
+      {:jason, "~> 1.4", only: :test}
     ]
   end
 
@@ -36,7 +36,7 @@ defmodule B3.MixProject do
     [
       main: "B3",
       source_url: @source_url,
-      homepage_url: @source_url,
+      homepage_url: @source_url
     ]
   end
 

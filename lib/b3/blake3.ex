@@ -18,8 +18,14 @@ defmodule B3.Blake3 do
   @derive_key_material 1 <<< 6
 
   @iv [
-    0x6A09E667, 0xBB67AE85, 0x3C6EF372, 0xA54FF53A,
-    0x510E527F, 0x9B05688C, 0x1F83D9AB, 0x5BE0CD19
+    0x6A09E667,
+    0xBB67AE85,
+    0x3C6EF372,
+    0xA54FF53A,
+    0x510E527F,
+    0x9B05688C,
+    0x1F83D9AB,
+    0x5BE0CD19
   ]
 
   @typedoc "Initialization vector"
@@ -27,22 +33,22 @@ defmodule B3.Blake3 do
 
   @typedoc "BLAKE3 params"
   @type params() :: %{
-    out_len: integer(),
-    key_len: integer(),
-    block_len: integer(),
-    chunk_len: integer()
-  }
+          out_len: integer(),
+          key_len: integer(),
+          block_len: integer(),
+          chunk_len: integer()
+        }
 
   @typedoc "BLAKE3 flags"
   @type flags() :: %{
-    chunk_start: integer(),
-    chunk_end: integer(),
-    parent: integer(),
-    root: integer(),
-    keyed_hash: integer(),
-    derive_key_context: integer(),
-    derive_key_material: integer()
-  }
+          chunk_start: integer(),
+          chunk_end: integer(),
+          parent: integer(),
+          root: integer(),
+          keyed_hash: integer(),
+          derive_key_context: integer(),
+          derive_key_material: integer()
+        }
 
   @max_u32 4_294_967_296
   @msg_permutation [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8]
@@ -97,7 +103,8 @@ defmodule B3.Blake3 do
   @doc """
   Takes a 128-byte chunk and mixes it into the chainign value.
   """
-  @spec compress(list(integer()), list(integer()), integer(), integer(), integer()) :: list(integer())
+  @spec compress(list(integer()), list(integer()), integer(), integer(), integer()) ::
+          list(integer())
   def compress(chaining_value, block_words, counter, block_len, flags) do
     state = [
       Enum.at(chaining_value, 0),
@@ -115,13 +122,13 @@ defmodule B3.Blake3 do
       counter,
       counter >>> 32,
       block_len,
-      flags,
+      flags
     ]
 
     Enum.reduce(0..7, mix(state, block_words), fn i, state ->
       state
-      |> List.update_at(i, & bxor(&1, Enum.at(state, i + 8)))
-      |> List.update_at(i + 8, & bxor(&1, Enum.at(chaining_value, i)))
+      |> List.update_at(i, &bxor(&1, Enum.at(state, i + 8)))
+      |> List.update_at(i + 8, &bxor(&1, Enum.at(chaining_value, i)))
     end)
   end
 
@@ -136,14 +143,14 @@ defmodule B3.Blake3 do
   end
 
   defp words_from_le_bytes("", len, words)
-    when length(words) == len,
-    do: words
+       when length(words) == len,
+       do: words
 
   defp words_from_le_bytes("", len, words),
     do: words_from_le_bytes("", len, [0 | words])
 
   defp words_from_le_bytes(bytes, len, words) when byte_size(bytes) < 4 do
-    bytes <> :binary.copy(<<0>>, 4 - byte_size(bytes))
+    (bytes <> :binary.copy(<<0>>, 4 - byte_size(bytes)))
     |> words_from_le_bytes(len, words)
   end
 
@@ -154,6 +161,7 @@ defmodule B3.Blake3 do
   @spec mix(list(integer()), list(integer())) :: list(integer())
   defp mix(state, block, n \\ 0)
   defp mix(state, _block, 7), do: state
+
   defp mix(state, block, n) do
     state
     |> round(block)
@@ -179,7 +187,7 @@ defmodule B3.Blake3 do
   # The mixing function, G, which mixes either a column or a diagonal
   @spec g(list(integer()), list(integer()), integer(), integer()) :: list(integer())
   defp g(state, idxs, x, y) do
-    [a, b, c, d] = Enum.map(idxs, & Enum.at(state, &1))
+    [a, b, c, d] = Enum.map(idxs, &Enum.at(state, &1))
 
     a = rem(a + b + x, @max_u32)
     d = rotr(bxor(d, a), 16)
@@ -202,17 +210,17 @@ defmodule B3.Blake3 do
 
   @spec rotr(integer(), integer()) :: integer()
   defp rotr(x, n) do
-    x >>> n
+    (x >>> n)
     |> bxor(x <<< (32 - n))
     |> rem(@max_u32)
   end
 
   @spec update_state(list(integer()), list(integer()), list(integer())) :: list(integer())
   defp update_state(state, [], []), do: state
+
   defp update_state(state, [i | idxs], [v | vals]) do
     state
     |> List.replace_at(i, v)
     |> update_state(idxs, vals)
   end
-
 end

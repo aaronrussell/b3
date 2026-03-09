@@ -7,11 +7,11 @@ defmodule B3.Hasher do
   defstruct [:chunk_state, :key_words, :cv_stack, :flags]
 
   @type t() :: %__MODULE__{
-    chunk_state: ChunkState.t(),
-    key_words: list(integer()),
-    cv_stack: list(list(integer())),
-    flags: integer(),
-  }
+          chunk_state: ChunkState.t(),
+          key_words: list(integer()),
+          cv_stack: list(list(integer())),
+          flags: integer()
+        }
 
   @type mode() :: :hash | :keyed_hash | :derive_key
 
@@ -37,29 +37,30 @@ defmodule B3.Hasher do
   def update(%__MODULE__{} = hasher, ""), do: hasher
 
   def update(%__MODULE__{} = hasher, input) when is_binary(input) do
-    hasher = case ChunkState.len(hasher.chunk_state) == Blake3.params(:chunk_len) do
-      true ->
-        chunk_cv =
-          hasher.chunk_state
-          |> ChunkState.output()
-          |> Output.chaining_value()
+    hasher =
+      case ChunkState.len(hasher.chunk_state) == Blake3.params(:chunk_len) do
+        true ->
+          chunk_cv =
+            hasher.chunk_state
+            |> ChunkState.output()
+            |> Output.chaining_value()
 
-        total_chunks = Map.get(hasher.chunk_state, :chunk_counter) + 1
+          total_chunks = Map.get(hasher.chunk_state, :chunk_counter) + 1
 
-        hasher
-        |> add_chunk_chaining_value(chunk_cv, total_chunks)
-        |> Map.put(:chunk_state, ChunkState.new(hasher.key_words, total_chunks, hasher.flags))
+          hasher
+          |> add_chunk_chaining_value(chunk_cv, total_chunks)
+          |> Map.put(:chunk_state, ChunkState.new(hasher.key_words, total_chunks, hasher.flags))
 
-      false ->
-        hasher
-    end
+        false ->
+          hasher
+      end
 
     want = Blake3.params(:chunk_len) - ChunkState.len(hasher.chunk_state)
     take = min(want, byte_size(input))
     <<input::binary-size(take), rest::binary>> = input
 
     hasher
-    |> Map.update!(:chunk_state, & ChunkState.update(&1, input))
+    |> Map.update!(:chunk_state, &ChunkState.update(&1, input))
     |> update(rest)
   end
 
@@ -82,20 +83,21 @@ defmodule B3.Hasher do
   end
 
   defp add_chunk_chaining_value(%__MODULE__{} = hasher, new_cv, total_chunks)
-    when is_list(new_cv) and is_integer(total_chunks)
-  do
+       when is_list(new_cv) and is_integer(total_chunks) do
     case (total_chunks &&& 1) == 0 do
       true ->
         [top_cv | cv_stack] = hasher.cv_stack
-        new_cv = parent_output(top_cv, new_cv, hasher.key_words, hasher.flags)
-        |> Output.chaining_value()
+
+        new_cv =
+          parent_output(top_cv, new_cv, hasher.key_words, hasher.flags)
+          |> Output.chaining_value()
 
         hasher
         |> Map.put(:cv_stack, cv_stack)
         |> add_chunk_chaining_value(new_cv, total_chunks >>> 1)
 
       false ->
-        update_in(hasher.cv_stack, & [new_cv | &1])
+        update_in(hasher.cv_stack, &[new_cv | &1])
     end
   end
 
@@ -112,17 +114,18 @@ defmodule B3.Hasher do
   end
 
   defp root_output(%__MODULE__{cv_stack: []}, %Output{} = output), do: output
+
   defp root_output(%__MODULE__{cv_stack: [top_cv | cv_stack]} = hasher, %Output{} = output) do
-    output = parent_output(
-      top_cv,
-      Output.chaining_value(output),
-      hasher.key_words,
-      hasher.flags
-    )
+    output =
+      parent_output(
+        top_cv,
+        Output.chaining_value(output),
+        hasher.key_words,
+        hasher.flags
+      )
 
     hasher
     |> Map.put(:cv_stack, cv_stack)
     |> root_output(output)
   end
-
 end
