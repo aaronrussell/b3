@@ -13,17 +13,19 @@ jobs:
 
     strategy:
       matrix:
-        otp: ['24.x', '25.x']
-        elixir: ['1.12.3', '1.13.4', '1.14.3']
+        otp: ['26.x', '27.x', '28.x']
+        elixir: ['1.17.3', '1.18.4', '1.19.4']
         exclude:
-          - otp: '25.x'
-            elixir: '1.12.3'
+          - otp: '28.x'
+            elixir: '1.17.3'
+          - otp: '28.x'
+            elixir: '1.18.4'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
         with:
           otp-version: ${{matrix.otp}}
           elixir-version: ${{matrix.elixir}}
-      - run: mix do deps.get, deps.compile
+      - run: mix deps.get
       - run: mix test
