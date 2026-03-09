@@ -1,5 +1,9 @@
 defmodule B3 do
   @moduledoc """
+  ![B3](https://raw.githubusercontent.com/aaronrussell/b3/main/media/poster.webp)
+
+  ![License](https://img.shields.io/github/license/aaronrussell/b3?color=informational)
+
   B3 is a pure Elixir implementation of [BLAKE3](https://blake3.io), a modern
   cryptographic hash function.
 

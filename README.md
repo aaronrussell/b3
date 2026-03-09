@@ -1,8 +1,10 @@
 # B3
 
+![B3](https://raw.githubusercontent.com/aaronrussell/b3/main/media/poster.webp)
+
 ![Hex.pm](https://img.shields.io/hexpm/v/b3?color=informational)
-![License](https://img.shields.io/github/license/lebrunel/b3?color=informational)
-![Build Status](https://img.shields.io/github/actions/workflow/status/lebrunel/b3/elixir.yml?branch=main)
+![License](https://img.shields.io/github/license/aaronrusell/b3?color=informational)
+![Build Status](https://img.shields.io/github/actions/workflow/status/aaronrusell/b3/elixir.yml?branch=main)
 
 B3 is a pure Elixir implementation of [BLAKE3](https://blake3.io), a modern cryptographic hash function.
 
@@ -51,6 +53,6 @@ B3.derive_key("test", "[Test app] 1 Oct 2022 - Test keys", encoding: :hex)
 
 ## License
 
-Eddy is open source and released under the [Apache-2 License](https://github.com/lebrunel/b3/blob/main/LICENSE).
+Eddy is open source and released under the [Apache-2 License](https://github.com/aaronrusell/b3/blob/main/LICENSE).
 
-© Copyright 2023 lebrunel.
+© Copyright 2023-2026 [Push Code Ltd](https://www.pushcode.com/).
