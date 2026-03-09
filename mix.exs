@@ -27,8 +27,10 @@ defmodule B3.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:benchee, "~> 1.5", only: :dev},
+      {:blake3, github: "aaronrussell/blake3", only: :dev},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
-      {:jason, "~> 1.4", only: :test}
+      {:jason, "~> 1.4", only: [:dev, :test]}
     ]
   end
 
