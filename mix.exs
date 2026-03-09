@@ -1,19 +1,18 @@
 defmodule B3.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/aaronrussell/b3"
+
   def project do
     [
       app: :b3,
-      version: "0.1.0",
+      name: "B3",
+      version: @version,
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      name: "B3",
-      description: "B3 is a pure Elixir implementation of the BLAKE3 hashing algorithm.",
-      source_url: "https://github.com/lebrunel/b3",
-      docs: [
-        main: "B3"
-      ],
+      docs: docs(),
       package: pkg(),
     ]
   end
@@ -28,18 +27,27 @@ defmodule B3.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
       {:jason, "~> 1.4", only: :test},
+    ]
+  end
+
+  defp docs do
+    [
+      main: "B3",
+      source_url: @source_url,
+      homepage_url: @source_url,
     ]
   end
 
   defp pkg do
     [
-      name: "b3",
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
+      description: "B3 is a pure Elixir implementation of the BLAKE3 hashing algorithm.",
       licenses: ["Apache-2.0"],
+      maintainers: ["Aaron Russell"],
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
       links: %{
-        "GitHub" => "https://github.com/lebrunel/b3"
+        "GitHub" => @source_url
       }
     ]
   end
