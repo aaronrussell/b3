@@ -1,5 +1,6 @@
 defmodule B3.Output do
   @moduledoc false
+
   import Bitwise
   alias B3.Blake3
 

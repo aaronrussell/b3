@@ -1,6 +1,7 @@
 defmodule B3.Blake3 do
-  # BLAKE3 algorithm module.
   @moduledoc false
+
+  # BLAKE3 algorithm module.
 
   import Bitwise
 

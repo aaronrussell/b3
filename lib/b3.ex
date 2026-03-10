@@ -7,13 +7,15 @@ defmodule B3 do
   B3 is a pure Elixir implementation of [BLAKE3](https://blake3.io), a modern
   cryptographic hash function.
 
-  As well as regular hash, B3 is a PRF, MAC, KDF, and XOF. That's a lot of
-  acronyms!
+  Ported from the official BLAKE3 [reference implementation](https://github.com/BLAKE3-team/BLAKE3/blob/master/reference_impl/reference_impl.rs)
+  with zero dependencies — no Rust toolchain, no NIFs, no compilation headaches.
+  The internals have been optimised for the BEAM, so while pure Elixir will
+  never match native code, B3 is as fast as BLAKE3 gets without leaving the BEAM.
 
-  B3 is a pure Elixir port of the BLAKE3 [reference implementation](https://github.com/BLAKE3-team/BLAKE3/blob/master/reference_impl/reference_impl.rs).
-  Zero dependencies will make compilation and deployments simple, but if its
-  performance you're after, you may want to check out the [blake3 package](https://github.com/Thomas-Jean/blake3)
-  which uses Rustler to bind to the Rust BLAKE3 implementation.
+  As well as regular hashing, B3 is a PRF, MAC, KDF, and XOF. That's a lot of
+  acronyms, but what it means is that B3 can do keyed hashing (MAC/PRF), key
+  derivation (KDF), and produce variable-length output (XOF) — all from a single
+  algorithm.
   """
   alias B3.Hasher
 
@@ -22,8 +24,8 @@ defmodule B3 do
 
   ## Accepted options
 
-  - `:length` - length of digest (default: 32)
-  - `:encoding` - encode digest as (`:hex` or `:base64`)
+  - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
+  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
 
   ## Example
 
@@ -37,12 +39,12 @@ defmodule B3 do
   @doc """
   Returns a keyed hash of the given message. Key must be 32 bytes.
 
-  This mode removes the need for a seperate HMAC function.
+  This mode removes the need for a separate HMAC function.
 
   ## Accepted options
 
-  - `:length` - length of digest (default: 32)
-  - `:encoding` - encode digest as (`:hex` or `:base64`)
+  - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
+  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
 
   ## Example
 
@@ -59,12 +61,13 @@ defmodule B3 do
   @doc """
   Derives a key from the given key material and context string.
 
-  The context string should be globally unique and application specific.
+  The context string should be globally unique and application specific,
+  e.g. `"MyApp 2024-01-15 session tokens"`.
 
   ## Accepted options
 
-  - `:length` - length of key (default: 32)
-  - `:encoding` - encode key as (`:hex` or `:base64`)
+  - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
+  - `:encoding` - encode key as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
 
   ## Example
 
@@ -88,7 +91,7 @@ defmodule B3 do
     |> encode(encoding)
   end
 
-  # Encodes the data has hex or base64
+  # Encodes the data as hex (lowercase), base16 (uppercase), or base64
   defp encode(data, :base16), do: Base.encode16(data)
   defp encode(data, :base64), do: Base.encode64(data)
   defp encode(data, :hex), do: Base.encode16(data, case: :lower)
