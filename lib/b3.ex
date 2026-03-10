@@ -25,7 +25,7 @@ defmodule B3 do
   ## Accepted options
 
   - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
-  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
+  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`.
 
   ## Example
 
@@ -44,7 +44,7 @@ defmodule B3 do
   ## Accepted options
 
   - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
-  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
+  - `:encoding` - encode digest as `:hex` (lowercase), `:base16` (uppercase), or `:base64`.
 
   ## Example
 
@@ -67,7 +67,7 @@ defmodule B3 do
   ## Accepted options
 
   - `:length` - output length in bytes (default: 32). BLAKE3 is an XOF, so any length is valid.
-  - `:encoding` - encode key as `:hex` (lowercase), `:base16` (uppercase), or `:base64`
+  - `:encoding` - encode key as `:hex` (lowercase), `:base16` (uppercase), or `:base64`.
 
   ## Example
 

@@ -19,7 +19,7 @@ The package can be installed by adding `b3` to your list of dependencies in `mix
 ```elixir
 def deps do
   [
-    {:b3, "~> 0.1"}
+    {:b3, "~> 0.2"}
   ]
 end
 ```
